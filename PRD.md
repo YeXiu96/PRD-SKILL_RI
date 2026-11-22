@@ -1,6 +1,6 @@
 # PRODUCT REQUIREMENTS DOCUMENT (PRD)
 ## Fitur: Penanganan Perubahan & Bentrok Jadwal Kuliah — Portal Akademik UMM
-**Versi:** 1.0 | **Status:** Draft | **Sumber:** Worksheet 1–8 (UX Design Hands-on Workbook)
+**Penyusun:** Raditya Zeliq Amanta | **Versi:** 1.0 | **Status:** Draft | **Sumber:** Worksheet 1–8 (UX Design Hands-on Workbook)
 
 ## 1. Latar Belakang
 Portal Akademik dapat memindahkan jadwal kuliah mahasiswa secara sepihak setelah KRS dikunci. Perubahan tidak disertai notifikasi, bentrok tampil polos tanpa penanda, kolom Aksi KRS kosong, dan banner peringatan tidak menjelaskan mata kuliah yang terdampak. Mahasiswa mencari sesi pengganti secara manual lewat grup angkatan dan file Excel prodi, serta cemas dianggap alfa.

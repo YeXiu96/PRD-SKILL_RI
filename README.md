@@ -7,7 +7,7 @@ Repository ini berisi dokumentasi spesifikasi produk (**PRD**), catatan perubaha
 ## 📌 Dokumen Utama
 
 - 📄 **[Product Requirements Document (PRD.md)](./PRD.md)**  
-  Berisi latar belakang masalah, persona mahasiswa (*Suryo Wisodono Prayogo*), *user needs*, *functional requirements* (FR-01 s/d FR-07), batasan, dan kriteria penerimaan (*acceptance criteria*).
+  Berisi latar belakang masalah, persona narasumber wawancara (*Suryo Wisodono Prayogo*), *user needs*, *functional requirements* (FR-01 s/d FR-07), batasan, dan kriteria penerimaan (*acceptance criteria*).
 - 📝 **[Changelog (CHANGELOG.md)](./CHANGELOG.md)**  
   Mencatat riwayat versi iterasi produk (v1.0.0), daftar fitur yang telah diimplementasikan, keputusan desain, dan status pengujian.
 - 💻 **[Interactive Prototype (index.html)](./index.html)**  
@@ -50,7 +50,8 @@ Pada Portal Akademik mahasiswa, perubahan jadwal kuliah sepihak pasca KRS sering
 
 ---
 
-## 👤 Pengembang
-- **Nama:** Suryo Wisodono Prayogo / YeXiu96
+## 👤 Informasi Pengembang & Proyek
+- **Pengembang:** Raditya Zeliq Amanta ([@YeXiu96](https://github.com/YeXiu96))
+- **Narasumber (Persona):** Suryo Wisodono Prayogo (Mahasiswa S1 Informatika Semester 7)
 - **Mata Kuliah:** Rekayasa Interaksi B
 - **Institusi:** Universitas Muhammadiyah Malang
