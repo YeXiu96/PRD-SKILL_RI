@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { ScheduleState, LogEntry, ClassSession } from '../types/schedule';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { ScheduleState, LogEntry, ClassSession, DayOfWeek } from '../types/schedule';
 import { COURSES, INITIAL_SESSIONS } from '../constants/courses';
 import { detectConflicts, formatSlot, isOverlapping } from '../utils/scheduleLogic';
 import { storageService } from '../services/storage';
+import { supabase, supabaseService } from '../services/supabase';
 
 const getInitialState = (): ScheduleState => ({
   currentSessions: { ...INITIAL_SESSIONS },
@@ -15,21 +16,55 @@ export const useSchedule = () => {
   const [activeTab, setActiveTab] = useState<'jadwal' | 'riwayat'>('jadwal');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Load state saat startup (FR-07) dengan safety timeout agar tidak stuck loading
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToastMessage(null);
+  }, []);
+
+  // Simpan setiap ada perubahan state (FR-07)
+  const updateAndSave = useCallback((updater: (prev: ScheduleState) => ScheduleState) => {
+    setState((prev) => {
+      const next = updater(prev);
+      storageService.saveState(next);
+      return next;
+    });
+  }, []);
+
+  // 1. Pemuatan Awal Data (Sync Supabase & Local Fallback)
   useEffect(() => {
     let isMounted = true;
     const safetyTimer = setTimeout(() => {
       if (isMounted) setIsLoading(false);
-    }, 800);
+    }, 1200);
 
     (async () => {
       try {
-        const saved = await storageService.loadState();
-        if (isMounted && saved) {
-          setState(saved);
+        // Coba ambil dari Supabase terlebih dahulu
+        const remoteSessions = await supabaseService.fetchSchedule();
+        const remoteLogs = await supabaseService.fetchLogs();
+
+        if (isMounted && remoteSessions && Object.keys(remoteSessions).length > 0) {
+          const remoteState: ScheduleState = {
+            currentSessions: remoteSessions,
+            logs: remoteLogs || [],
+          };
+          setState(remoteState);
+          storageService.saveState(remoteState);
+        } else {
+          // Fallback ke penyimpanan lokal jika offline
+          const saved = await storageService.loadState();
+          if (isMounted && saved) {
+            setState(saved);
+          }
         }
       } catch (e) {
-        console.warn('Gagal memuat penyimpanan:', e);
+        console.warn('Gagal sinkronisasi awal dengan Supabase:', e);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -44,22 +79,91 @@ export const useSchedule = () => {
     };
   }, []);
 
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-  }, []);
+  // 2. Langganan Supabase Realtime (WebSocket Live Update tanpa tombol!)
+  useEffect(() => {
+    const channel = supabase
+      .channel('portal-realtime-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'portal_schedule' },
+        (payload) => {
+          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+            const row: any = payload.new;
+            const courseId = Number(row.course_id);
+            const newSession: ClassSession = {
+              classCode: row.class_code,
+              day: row.day as DayOfWeek,
+              startTime: row.start_time,
+              endTime: row.end_time,
+              room: row.room,
+            };
 
-  const hideToast = useCallback(() => {
-    setToastMessage(null);
-  }, []);
+            const prevSession = stateRef.current.currentSessions[courseId];
+            const isDifferent =
+              !prevSession ||
+              prevSession.day !== newSession.day ||
+              prevSession.startTime !== newSession.startTime ||
+              prevSession.classCode !== newSession.classCode;
 
-  // Simpan setiap ada perubahan state (FR-07)
-  const updateAndSave = useCallback(async (updater: (prev: ScheduleState) => ScheduleState) => {
-    setState((prev) => {
-      const next = updater(prev);
-      storageService.saveState(next);
-      return next;
-    });
-  }, []);
+            if (isDifferent) {
+              const courseName = COURSES[courseId]?.name || `Mata Kuliah #${courseId}`;
+              const changeText = `Jadwal ${courseName} dipindahkan oleh sistem ke ${formatSlot(
+                newSession
+              )}.`;
+
+              const now = Date.now();
+              const systemLog: LogEntry = {
+                id: `realtime-sys-${now}`,
+                at: now,
+                txt: changeText,
+                isSystem: true,
+                isRead: false,
+              };
+
+              updateAndSave((prev) => ({
+                ...prev,
+                currentSessions: {
+                  ...prev.currentSessions,
+                  [courseId]: newSession,
+                },
+                logs: [...prev.logs, systemLog],
+              }));
+
+              showToast(`⚡ Realtime Update: ${changeText}`);
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'portal_logs' },
+        (payload) => {
+          const row: any = payload.new;
+          const newLog: LogEntry = {
+            id: row.id,
+            txt: row.txt,
+            isSystem: row.is_system,
+            isScenario: row.is_scenario,
+            isRead: row.is_read,
+            at: Number(row.at),
+          };
+
+          // Hindari duplikasi jika log sudah ada
+          updateAndSave((prev) => {
+            if (prev.logs.some((l) => l.id === newLog.id)) return prev;
+            return {
+              ...prev,
+              logs: [...prev.logs, newLog],
+            };
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [updateAndSave, showToast]);
 
   // Hitung status bentrok secara reaktif (FR-03)
   const conflicts = useMemo(() => {
@@ -84,8 +188,8 @@ export const useSchedule = () => {
     }));
   }, [updateAndSave]);
 
-  // Simulasi pemindahan sepihak oleh BAA (Mode Demo)
-  const simulateBAAChange = useCallback(() => {
+  // Simulasi pemindahan sepihak oleh BAA (Sync ke Supabase & Local)
+  const simulateBAAChange = useCallback(async () => {
     const courseId = 2; // Pemrograman Web
     const oldSession = state.currentSessions[courseId];
     // Dipindah ke Rabu 08:40 - 10:20 (menabrak Basis Data)
@@ -113,17 +217,17 @@ export const useSchedule = () => {
       },
     ];
 
-    // Cek bentrok dengan mata kuliah lain
     const nextSessions: Record<number, ClassSession> = {
       ...state.currentSessions,
       [courseId]: newSession,
     };
+
     const collidingIds = Object.keys(nextSessions)
       .map(Number)
       .filter((j) => j !== courseId && isOverlapping(newSession, nextSessions[j]));
 
     if (collidingIds.length > 0) {
-      const collidedNames = collidingIds.map((id) => COURSES[id].name).join(', ');
+      const collidedNames = collidingIds.map((id) => COURSES[id]?.name).join(', ');
       newLogs.push({
         id: `sys-${now}-2`,
         at: now,
@@ -140,11 +244,17 @@ export const useSchedule = () => {
     }));
 
     showToast(`Notifikasi: ${changeText}`);
+
+    // Sinkronisasi ke Supabase di cloud
+    await supabaseService.updateSession(courseId, newSession);
+    for (const log of newLogs) {
+      await supabaseService.addLog(log);
+    }
   }, [state.currentSessions, updateAndSave, showToast]);
 
   // Pindah ke sesi kelas paralel dosen sama (FR-04 & FR-05)
   const moveToSession = useCallback(
-    (courseId: number, targetSession: ClassSession) => {
+    async (courseId: number, targetSession: ClassSession) => {
       const oldSession = state.currentSessions[courseId];
       const course = COURSES[courseId];
       const logText = `Kamu pindah kelas ${course.name} dari Kelas ${oldSession.classCode} (${formatSlot(
@@ -171,6 +281,10 @@ export const useSchedule = () => {
       }));
 
       showToast('Sesi kuliah berhasil dipindahkan.');
+
+      // Simpan ke Supabase di cloud
+      await supabaseService.updateSession(courseId, targetSession);
+      await supabaseService.addLog(newLog);
     },
     [state.currentSessions, updateAndSave, showToast]
   );
@@ -181,6 +295,11 @@ export const useSchedule = () => {
     setState(getInitialState());
     setActiveTab('jadwal');
     showToast('Data demo berhasil direset ke jadwal awal.');
+
+    // Kembalikan semua ke INITIAL_SESSIONS di Supabase
+    for (const id of [1, 2, 3, 4, 5]) {
+      await supabaseService.updateSession(id, INITIAL_SESSIONS[id]);
+    }
   }, [showToast]);
 
   return {
