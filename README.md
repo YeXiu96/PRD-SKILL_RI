@@ -2,6 +2,10 @@
 ## Fitur: Penanganan Perubahan & Bentrok Jadwal Kuliah — Portal Akademik UMM
 **Penyusun:** Raditya Zeliq Amanta ([@YeXiu96](https://github.com/YeXiu96)) | **Versi:** 1.0 | **Sumber:** Worksheet 1–8 (UX Design Hands-on Workbook)
 
+> 🌐 **Live Production Deployment (Vercel):** [https://portalakademik.vercel.app/](https://portalakademik.vercel.app/)  
+> 📦 **Repositori GitHub:** [https://github.com/YeXiu96/PRD-SKILL_RI](https://github.com/YeXiu96/PRD-SKILL_RI)  
+> 📱 **Teknologi:** React Native (TypeScript) + Expo + Supabase Realtime WebSocket
+
 ---
 
 ## 1. Latar Belakang
@@ -91,9 +95,13 @@ Aplikasi dibangun menggunakan **React Native (TypeScript)** berbasis Expo dengan
 
 ---
 
-## 13. Cara Menjalankan Aplikasi
+## 13. Deployment & Cara Menjalankan Aplikasi
 
-### 1. Di Web Browser Laptop:
+### 🌐 Live Production Deployment (Vercel)
+Aplikasi telah di-deploy dan dapat dicoba secara online tanpa instalasi apa pun melalui peramban desktop maupun smartphone:  
+👉 **[https://portalakademik.vercel.app/](https://portalakademik.vercel.app/)**
+
+### 1. Menjalankan Lokal di Web Browser:
 ```bash
 npx expo start --web
 ```

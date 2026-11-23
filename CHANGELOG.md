@@ -2,6 +2,7 @@
 
 Eksperimen: **PRD Only + UX Skill (UX Documentation Suite)**.  
 Repositori GitHub: [https://github.com/YeXiu96/PRD-SKILL_RI](https://github.com/YeXiu96/PRD-SKILL_RI)  
+Live Deployment (Vercel): [https://portalakademik.vercel.app/](https://portalakademik.vercel.app/)  
 Metrik evaluasi: kelengkapan fitur, kesesuaian UX, konsistensi desain, hasil pengujian, jumlah revisi, waktu pengerjaan.
 
 ---
