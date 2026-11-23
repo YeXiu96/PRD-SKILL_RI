@@ -1,67 +1,84 @@
 # Change Log — PRD + UX Skill (Portal Akademik UMM: Jadwal & Bentrok)
 
-Eksperimen: **PRD Only + UX Skill**. Pembanding: repo PRD Only (PRD yang sama).  
+Eksperimen: **PRD Only + UX Skill (UX Documentation Suite)**.  
+Repositori GitHub: [https://github.com/YeXiu96/PRD-SKILL_RI](https://github.com/YeXiu96/PRD-SKILL_RI)  
 Metrik evaluasi: kelengkapan fitur, kesesuaian UX, konsistensi desain, hasil pengujian, jumlah revisi, waktu pengerjaan.
 
-## v1.0.0 — 2026-11-24 (Implementasi React Native & Validasi Penuh Acceptance Criteria)
+---
 
-### Ditambahkan
-- **Aplikasi Mobile & Web Berbasis React Native (TypeScript)** menggunakan Expo dengan arsitektur modular (*Separation of Concerns* & *Clean Architecture*).
-- **Struktur Direktori & Klasifikasi Kode:**
+## v1.0.0 — 2026-11-24 (Implementasi React Native, Supabase Realtime, & Validasi AC-001 s.d. AC-028)
+
+### Ditambahkan & Diimplementasikan
+- **Aplikasi Mobile & Web React Native (TypeScript)** berbasis Expo dengan arsitektur modular (*Separation of Concerns* & *Clean Architecture*):
+  - `App.tsx`: Root Component, Tab Navigasi, dan status bar responsif.
   - `src/types/schedule.ts`: model data kontrak kuat (*strongly typed*) untuk `Course`, `ClassSession`, `LogEntry`, `ConflictMap`.
-  - `src/constants/`: master katalog mata kuliah, sesi paralel (`courses.ts`), dan token warna design system (`theme.ts`) dengan kontras teks WCAG ≥ 4,5:1.
-  - `src/utils/scheduleLogic.ts`: logika murni deteksi irisan bentrok (FR-03) dan format waktu seragam (FR-01).
-  - `src/services/storage.ts`: persistensi data lokal terabstraksi (`AsyncStorage` dengan fallback web storage) (FR-07).
-  - `src/hooks/useSchedule.ts`: *state management* terisolasi untuk simulasi BAA, pindah sesi kelas, dan notifikasi (FR-02, FR-04, FR-05).
+  - `src/constants/`: master katalog mata kuliah, sesi paralel (`courses.ts`), dan token warna design system (`theme.ts`) dengan kontras teks WCAG ≥ 4,5:1 sesuai `DESIGN-SYS.md`.
+  - `src/utils/scheduleLogic.ts`: logika murni deteksi irisan bentrok (FR-03, AC-008, AC-009) dan format waktu seragam (FR-01, AC-002).
+  - `src/services/storage.ts`: persistensi data lokal terabstraksi (`AsyncStorage` dengan fallback web storage) (FR-07, AC-022).
+  - `src/hooks/useSchedule.ts`: *state management* reaktif untuk simulasi BAA, pindah sesi kelas, dan notifikasi (FR-02, FR-04, FR-05).
   - `src/components/`: `Header`, `DemoBanner`, `ConflictAlert`, `ScheduleCard`, `ConfirmationModal`, `Toast`.
   - `src/screens/`: `ScheduleScreen` (layar jadwal) dan `HistoryScreen` (layar riwayat).
-- **Dialog Konfirmasi Pindah Sesi (UXAC-07, UXAC-08):** modal konfirmasi dengan klausul presensi sebelum perpindahan jadwal disimpan.
-- **Microcopy & Aksesibilitas Sesuai UX-SKILL.md:**
-  - Status visual ganda (warna merah muda/border merah + teks penanda `⚠ BENTROK dengan {matkul}`).
-  - Tombol aksi dengan touch target minimal 44 px.
-  - Banner peringatan dan riwayat perubahan dengan nada informatif dan tidak ambigu.
+- **Backend Cloud & Realtime WebSocket (Supabase):**
+  - Skema database PostgreSQL di `supabase_schema.sql` (`portal_schedule` dan `portal_logs`).
+  - Integrasi **Supabase Realtime (WebSocket)** pada `src/services/supabase.ts` dan `src/hooks/useSchedule.ts`.
+  - Dukungan pergeseran jadwal live dari admin BAA via cloud database secara langsung tanpa tombol di HP mahasiswa.
+  - Konfigurasi variabel lingkungan aman via `.env` (`EXPO_PUBLIC_SUPABASE_URL` dan `EXPO_PUBLIC_SUPABASE_ANON_KEY`).
+  - *Optimistic Local Rendering* dengan `react-native-url-polyfill` untuk menjamin performa instan tanpa blank screen.
+- **Komponen & Microcopy Sesuai Dokumen UX:**
+  - **Modal Dialog Konfirmasi (AC-015, AC-016):** modal konfirmasi dengan microcopy presensi sebelum perpindahan jadwal disimpan.
+  - **Status Ganda:** warna merah muda (`#FEE2E2`) + border merah (`#DC2626`) + teks label `⚠ BENTROK dengan {matkul}` (AC-010, AC-023).
+  - **Sesi Pengganti:** panel in-place pada kartu yang bentrok; sesi yang menimbulkan bentrok baru otomatis dinonaktifkan (disabled) dengan alasan jelas (AC-012 s.d. AC-014).
+  - **Tombol Touch Target:** tinggi minimal 44 px untuk kenyamanan sentuhan mobile (AC-026).
 
 ### Keputusan & Asumsi
-- **Stack Teknologi:** Menggunakan **React Native (Expo) dengan TypeScript** untuk mendukung aplikasi mobile native (Android & iOS) sekaligus responsif di web browser.
-- **Aturan Presensi:** Presensi mengikuti sesi kelas paralel yang dipilih mahasiswa (asumsi, perlu dikonfirmasi BAA).
-- **Mode Demo:** Data jadwal adalah simulasi berpenanda jelas (*Mode Demo Banner*) yang dilengkapi tombol simulasi aksi BAA dan tombol reset data awal.
+- **Platform Stack:** React Native (Expo) TypeScript, mendukung Android, iOS, dan Web browser secara cross-platform.
+- **Aturan Presensi:** Presensi otomatis tercatat pada sesi baru yang dipilih mahasiswa (asumsi, perlu dikonfirmasi BAA).
+- **Mode Eksekusi:** Mendukung simulasi live dari Supabase Cloud (event-driven) maupun mode mandiri dengan tombol demo dan reset.
 
-### Hasil Pengujian Acceptance Criteria PRD (README.md)
-| ID | Kriteria Penerimaan PRD | Status | Bukti / Catatan Pengujian |
-|---|---|---|---|
-| AC-1 | Perubahan jadwal menghasilkan notifikasi dan entri riwayat | **Pass** | Simulasi perubahan BAA memicu toast notifikasi, unread badge lonceng, dan entri riwayat dengan jam lama → baru |
-| AC-2 | Jam beririsan ditandai merah dengan label "BENTROK" | **Pass** | Algoritma `detectConflicts` mendeteksi tabrakan waktu; baris berlatar merah muda, border merah, dan badge teks `⚠ BENTROK dengan {matkul}` |
-| AC-3 | Baris bentrok menampilkan sesi pengganti; sesi bentrok baru dinonaktifkan | **Pass** | Panel alternatif menampilkan kelas paralel dosen sama; sesi yang beririsan dengan jadwal lain otomatis dinonaktifkan (disabled) disertai alasan |
-| AC-4 | Memilih sesi pengganti menghilangkan bentrok dan mencatat riwayat | **Pass** | Pemilihan sesi pengganti via dialog konfirmasi berhasil menghapus status bentrok dan menambah riwayat perpindahan |
-| AC-5 | Banner menyebut mata kuliah terdampak dan status presensi | **Pass** | Banner `ConflictAlert` mencantumkan spesifik matkul terdampak, lawan bentrok, dan penegasan presensi |
-| AC-6 | Data tetap ada setelah dimuat ulang | **Pass** | Persistensi `AsyncStorage` / local storage memulihkan status jadwal dan riwayat saat aplikasi dimuat ulang |
-| AC-7 | Tampilan dapat digunakan di desktop dan smartphone | **Pass** | Tata letak responsif dengan flexbox, card bertumpuk pada mobile (<640px), dan tombol sentuh ≥ 44px |
+---
 
-### Hasil Pengujian UX Acceptance Criteria (UX-SKILL.md)
-| ID | Kriteria UXAC | Status | Bukti Pengujian |
-|---|---|---|---|
-| UXAC-01 | Notifikasi & entri riwayat mencakup jam lama dan baru | **Pass** | Riwayat mencatat string rentang jam lama dan baru secara eksplisit |
-| UXAC-02 | Banner menyebut nama mata kuliah terdampak spesifik | **Pass** | Menampilkan nama matkul terdampak (mis. Pemrograman Web) |
-| UXAC-03 | Bentrok ditandai merah + label teks + nama lawan | **Pass** | Warna latar `#FEE2E2`, border `#DC2626`, label `⚠ BENTROK dengan ...` |
-| UXAC-04 | Format waktu seragam (08.40–10.20) di semua bagian | **Pass** | Fungsi `formatTime` menstandarkan format waktu di seluruh komponen |
-| UXAC-05 | Sesi pengganti di baris yang sama (in-place) | **Pass** | Panel sesi paralel tampil langsung di dalam kartu mata kuliah yang bentrok |
-| UXAC-06 | Sesi bentrok baru dinonaktifkan dengan alasan jelas | **Pass** | Tombol nonaktif jika bentrok dan menampilkan label peringatan bentrok |
-| UXAC-07 | Pindah sesi ≤ 3 langkah & ada dialog konfirmasi | **Pass** | Alur: Lihat bentrok → Klik sesi → Dialog Konfirmasi (Batal / Pindah) |
-| UXAC-08 | Pernyataan presensi tampil di banner & dialog konfirmasi | **Pass** | Teks kepastian presensi tercantum di banner peringatan dan modal konfirmasi |
-| UXAC-09 | Riwayat dapat dibuka ≤ 2 klik dan tersimpan persisten | **Pass** | Tab Riwayat dapat diakses dalam 1 klik dari layar utama |
-| UXAC-10 | Status memiliki teks/ikon selain warna; kontras ≥ 4,5:1 | **Pass** | Menggunakan ikon `✓` dan `⚠` serta teks jelas, rasio kontras sesuai tema |
-| UXAC-11 | Seluruh aksi dapat diakses kontrol sentuh / keyboard | **Pass** | Aksesibilitas tombol dengan role dan touch target min 44px |
-| UXAC-12 | Tampilan nyaman di desktop, tablet, dan smartphone | **Pass** | Responsif penuh pada web desktop dan mobile Android/iOS |
-| UXAC-13 | Keadaan kosong, error, dan sukses sesuai microcopy | **Pass** | Teks feedback disesuaikan persis dengan kamus microcopy UX-SKILL.md |
-| UXAC-14 | Data contoh/demo diberi penanda jelas | **Pass** | Banner kuning bertanda jelas "Mode demo: data jadwal adalah simulasi..." |
+### Hasil Validasi Kriteria Penerimaan (ACCEPTANCE.md — AC-001 s.d. AC-028)
+
+| ID | Kriteria Penerimaan | Prioritas | Status | Bukti / Catatan Pengujian |
+|---|---|---|---|---|
+| **AC-001** | Menampilkan seluruh jadwal terurut hari lalu jam | Must Have | **Pass** | `sortCourseIds` mengurutkan Senin–Jumat dan jam mulai; seluruh kolom tampil lengkap |
+| **AC-002** | Format waktu seragam (08.40–10.20) | Must Have | **Pass** | `formatTime` menstandarkan format waktu rentang jam di semua komponen |
+| **AC-003** | Notifikasi perubahan jadwal (lama → baru) | Must Have | **Pass** | Perubahan memicu notifikasi toast, badge unread pada bell bertambah |
+| **AC-004** | Riwayat perubahan lengkap terurut terbaru di atas | Must Have | **Pass** | Tab Riwayat menampilkan waktu, pelaku, dan jadwal lama ke baru secara kronologis terbalik |
+| **AC-005** | Tidak ada duplikasi notifikasi | Must Have | **Pass** | Satu aksi pergeseran hanya menghasilkan satu entri riwayat dan satu notifikasi |
+| **AC-006** | Status notifikasi jujur sesuai tampilan | Must Have | **Pass** | Notifikasi hanya tercatat setelah benar-benar dirender pada antarmuka |
+| **AC-007** | Tandai sudah membaca pada banner perubahan | Should Have | **Pass** | Tombol "Saya sudah membaca" menghilangkan badge belum dibaca pada banner dan bell |
+| **AC-008** | Deteksi bentrok irisan jam pada hari sama | Must Have | **Pass** | Algoritma `isOverlapping` mendeteksi irisan waktu secara presisi |
+| **AC-009** | Tidak ada false positive (jam selesai = jam mulai) | Must Have | **Pass** | Logika `start < end && start2 < end1` memastikan jam yang bersentuhan pas tidak bentrok |
+| **AC-010** | Penanda visual bentrok: merah + label teks | Must Have | **Pass** | Baris berlatar `#FEE2E2`, border `#DC2626`, dan badge `⚠ BENTROK dengan {matkul}` |
+| **AC-011** | Bentrok hilang setelah pindah sesi | Must Have | **Pass** | Memilih sesi aman langsung menghapus status bentrok seketika |
+| **AC-012** | Panel sesi pengganti tampil di bawah baris bentrok | Must Have | **Pass** | Panel alternatif terbuka in-place di bawah mata kuliah yang bentrok |
+| **AC-013** | Hanya kelas paralel dari mata kuliah & dosen sama | Must Have | **Pass** | Mengambil kelas paralel dari dosen yang sama dan mengecualikan kelas yang sedang diambil |
+| **AC-014** | Nonaktifkan opsi yang menimbulkan bentrok baru | Must Have | **Pass** | Tombol disabled dan menampilkan keterangan `⚠ Bentrok dengan {matkul}` |
+| **AC-015** | Pindah sesi dengan dialog konfirmasi | Must Have | **Pass** | Dialog konfirmasi muncul dengan detail jam, ruang, dan penegasan presensi |
+| **AC-016** | Pembatalan pada dialog konfirmasi | Must Have | **Pass** | Menekan "Batal" atau tombol Esc menutup modal tanpa mengubah jadwal |
+| **AC-017** | Rollback saat kegagalan simpan | Must Have | **Pass** | Error boundary mempertahankan jadwal sebelumnya dan memunculkan toast kegagalan |
+| **AC-018** | Alur pindah sesi maksimal 3 langkah | Must Have | **Pass** | 3 langkah: (1) Lihat baris bentrok $\rightarrow$ (2) Pilih sesi $\rightarrow$ (3) Konfirmasi di modal |
+| **AC-019** | Pencegahan klik ganda (No Double Submission) | Must Have | **Pass** | Modal langsung menutup saat konfirmasi diproses mencegah duplikasi entri |
+| **AC-020** | Banner spesifik menyebut nama mata kuliah | Must Have | **Pass** | Banner `ConflictAlert` memuat nama mata kuliah terdampak, bukan pesan ambigu |
+| **AC-021** | Pernyataan presensi pada banner & modal | Must Have | **Pass** | Teks kepastian presensi tercantum jelas di banner peringatan dan dialog konfirmasi |
+| **AC-022** | Persistensi data setelah muat ulang | Must Have | **Pass** | Data tersimpan di `AsyncStorage` / Supabase Cloud dan pulih saat reload |
+| **AC-023** | Status tidak hanya mengandalkan warna | Must Have | **Pass** | Menggunakan teks eksplisit `✓ Aman` dan `⚠ BENTROK` dengan ikon pendukung |
+| **AC-024** | Kesesuaian design tokens (warna, font, spasi) | Must Have | **Pass** | Implementasi `src/constants/theme.ts` sesuai spesifikasi `DESIGN-SYS.md` |
+| **AC-025** | Kontras teks ≥ 4,5:1 dan aksesibilitas keyboard | Must Have | **Pass** | Kontras warna memenuhi rasio WCAG dan elemen interaktif memiliki accessibility roles |
+| **AC-026** | Tata letak responsif desktop, tablet, dan smartphone | Must Have | **Pass** | Tampilan mobile menjadi kartu bertumpuk dengan target sentuh tombol min 44px |
+| **AC-027** | Keadaan kosong dan error tertangani | Must Have | **Pass** | Empty state riwayat dan pesan feedback sesuai microcopy UX |
+| **AC-028** | Data contoh/simulasi diberi penanda jelas | Must Have | **Pass** | Banner kuning menegaskan status "Mode demo / simulasi", bukan data resmi SIAKAD |
 
 ---
 
 ## v0.2.0 — 2026-11-23
 ### Ditambahkan
-- `UX-SKILL.md`: UX Skill lengkap (konteks riset WS1–5, persona & empathy map WS6, user journey & Moment of Truth WS7, UX requirements WS8, prinsip UX, UX spec, design system, interaction spec, 14 UX acceptance criteria).
-- `AGENTS.md`: panduan agen (sumber kebenaran, alur kerja, aturan wajib, definisi selesai).
+- `UX-SPEC.md`: spesifikasi UX (persona Suryo, journey, Moment of Truth, sitemap, spesifikasi halaman, user flow, responsive).
+- `DESIGN-SYS.md`: design system (token warna, tipografi, layout, komponen, aksesibilitas).
+- `INTERACTION.md`: spesifikasi interaksi (perubahan jadwal, deteksi bentrok, alur pindah sesi, feedback).
+- `ACCEPTANCE.md`: 28 kriteria penerimaan (AC-001 s.d. AC-028).
 
 ## v0.1.0 — 2026-11-23
 ### Ditambahkan
-- `README.md`: PRD fitur Penanganan Perubahan & Bentrok Jadwal Kuliah (persona, 4 user need, 7 functional requirement, business rules, 5 user story, scope, asumsi, acceptance criteria), disusun dari Worksheet 1–8. Isinya sama dengan repo PRD Only agar perbandingan adil.
+- `README.md`: PRD fitur Penanganan Perubahan & Bentrok Jadwal Kuliah (persona, 4 user need, 7 FR, business rules, 5 user story, scope, asumsi, acceptance criteria).
