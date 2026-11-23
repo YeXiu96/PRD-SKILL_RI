@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StatusBar,
+  Platform,
 } from 'react-native';
+import { registerRootComponent } from 'expo';
 import { THEME } from './src/constants/theme';
 import { useSchedule } from './src/hooks/useSchedule';
 import { Header } from './src/components/Header';
@@ -36,7 +38,7 @@ export default function App() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={THEME.colors.primary} />
-        <Text style={styles.loadingText}>Memuat jadwal akademik...</Text>
+        <Text style={styles.loadingText}>Memuat portal jadwal akademik...</Text>
       </View>
     );
   }
@@ -118,6 +120,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: THEME.colors.background,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   loadingContainer: {
     flex: 1,
@@ -179,3 +182,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+// Daftarkan root component untuk Expo / React Native
+registerRootComponent(App);

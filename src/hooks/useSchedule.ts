@@ -15,20 +15,32 @@ export const useSchedule = () => {
   const [activeTab, setActiveTab] = useState<'jadwal' | 'riwayat'>('jadwal');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Load state saat startup (FR-07)
+  // Load state saat startup (FR-07) dengan safety timeout agar tidak stuck loading
   useEffect(() => {
     let isMounted = true;
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 800);
+
     (async () => {
-      const saved = await storageService.loadState();
-      if (isMounted) {
-        if (saved) {
+      try {
+        const saved = await storageService.loadState();
+        if (isMounted && saved) {
           setState(saved);
         }
-        setIsLoading(false);
+      } catch (e) {
+        console.warn('Gagal memuat penyimpanan:', e);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+          clearTimeout(safetyTimer);
+        }
       }
     })();
+
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimer);
     };
   }, []);
 
@@ -102,7 +114,10 @@ export const useSchedule = () => {
     ];
 
     // Cek bentrok dengan mata kuliah lain
-    const nextSessions = { ...state.currentSessions, [courseId]: newSession };
+    const nextSessions: Record<number, ClassSession> = {
+      ...state.currentSessions,
+      [courseId]: newSession,
+    };
     const collidingIds = Object.keys(nextSessions)
       .map(Number)
       .filter((j) => j !== courseId && isOverlapping(newSession, nextSessions[j]));

@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Portal Jadwal UMM",
+    "slug": "rekayasa-interaksi-b",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#F8FAFC"
+    }
+  }
+}
