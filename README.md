@@ -10,8 +10,10 @@ Repository ini berisi dokumentasi spesifikasi produk (**PRD**), catatan perubaha
   Berisi latar belakang masalah, persona narasumber wawancara (*Suryo Wisodono Prayogo*), *user needs*, *functional requirements* (FR-01 s/d FR-07), batasan, dan kriteria penerimaan (*acceptance criteria*).
 - 📝 **[Changelog (CHANGELOG.md)](./CHANGELOG.md)**  
   Mencatat riwayat versi iterasi produk (v1.0.0), daftar fitur yang telah diimplementasikan, keputusan desain, dan status pengujian.
-- 💻 **[Interactive Prototype (index.html)](./index.html)**  
+- 💻 **[Interactive Web Prototype (index.html)](./index.html)**  
   Prototipe antarmuka berbasis web (HTML/CSS/JS) mandiri untuk mendemonstrasikan penyelesaian masalah bentrok jadwal.
+- 📱 **[React Native Mobile App (App.tsx & src/)](./App.tsx)**  
+  Implementasi aplikasi mobile React Native modular (TypeScript) dengan standar pemrograman profesional (*Clean Architecture*).
 
 ---
 
@@ -39,14 +41,54 @@ Pada Portal Akademik mahasiswa, perubahan jadwal kuliah sepihak pasca KRS sering
 
 ---
 
+## 🏗️ Arsitektur Proyek React Native (Clean & Modular)
+
+```
+.
+├── App.tsx                      # Root component & Tab Navigation
+├── package.json                 # Dependensi Expo / React Native
+├── tsconfig.json                # Konfigurasi TypeScript
+├── src/
+│   ├── types/                   # Contract & Interface definisi data
+│   │   └── schedule.ts
+│   ├── constants/               # Katalog mata kuliah & tema warna UI
+│   │   ├── courses.ts
+│   │   └── theme.ts
+│   ├── utils/                   # Logika murni: deteksi irisan bentrok & format waktu
+│   │   └── scheduleLogic.ts
+│   ├── services/                # Abstraksi persistensi penyimpanan lokal (AsyncStorage)
+│   │   └── storage.ts
+│   ├── hooks/                   # Business state management (FR-01 s/d FR-07)
+│   │   └── useSchedule.ts
+│   ├── components/              # Komponen modular reusable
+│   │   ├── Header.tsx           # Bar atas & badge notifikasi
+│   │   ├── DemoBanner.tsx       # Kontrol simulasi BAA & reset
+│   │   ├── ConflictAlert.tsx    # Banner peringatan bentrok & kepastian presensi
+│   │   ├── ScheduleCard.tsx     # Kartu jadwal kuliah & drawer sesi paralel
+│   │   └── Toast.tsx            # Floating toast notification
+│   └── screens/                 # Layar utama
+│       ├── ScheduleScreen.tsx   # Layar daftar jadwal kuliah
+│       └── HistoryScreen.tsx    # Layar riwayat & audit log perubahan
+```
+
+---
+
 ## 🖥️ Cara Menjalankan Prototipe
 
-1. Unduh / clone repository ini:
+### 1. Prototipe Web Mandiri:
+1. Buka berkas `index.html` langsung menggunakan peramban web (Google Chrome, Microsoft Edge, dll.).
+2. Klik tombol **"Simulasikan perubahan jadwal"** pada banner kuning.
+
+### 2. Aplikasi Mobile (React Native / Expo):
+1. Install dependensi:
    ```bash
-   git clone https://github.com/YeXiu96/Rekayasa-Interaksi-B.git
+   npm install
    ```
-2. Buka berkas `index.html` langsung menggunakan peramban web (Google Chrome, Microsoft Edge, Mozilla Firefox, dll.).
-3. Klik tombol **"Simulasikan perubahan jadwal"** pada banner kuning untuk menguji skenario bentrok dan alur penyelesaiannya.
+2. Jalankan aplikasi menggunakan Expo:
+   ```bash
+   npx expo start
+   ```
+3. Scan QR code melalui aplikasi **Expo Go** pada smartphone Android/iOS Anda.
 
 ---
 

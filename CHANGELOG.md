@@ -1,6 +1,16 @@
 # Change Log — Penanganan Perubahan & Bentrok Jadwal Kuliah (Portal Akademik UMM)
 **Eksperimen:** A (PRD saja; spesifikasi di `PRD.md`). **Platform AI:** Claude
 
+## v1.1.0 — 2026-11-23 (Implementasi Mobile Native / React Native)
+### Ditambahkan
+- Struktur arsitektur modular React Native (TypeScript) berbasis *Separation of Concerns* (SoC) dan *Clean Architecture*.
+- Definisi tipe data kuat (*strongly typed*) pada `src/types/schedule.ts`.
+- Logika bisnis terisolasi (deteksi irisan jam bentrok & format waktu seragam FR-01/FR-03) pada `src/utils/scheduleLogic.ts`.
+- Layanan penyimpanan persisten asynchronous (`AsyncStorage`) pada `src/services/storage.ts` (FR-07).
+- *State management* terenkapsulasi melalui custom hook `src/hooks/useSchedule.ts`.
+- Komponen antarmuka modular: `Header`, `DemoBanner`, `ConflictAlert`, `ScheduleCard`, `Toast`.
+- Layar interaktif: `ScheduleScreen` dan `HistoryScreen` (FR-02, FR-04, FR-05, FR-06).
+
 ## v1.0.0 — 2026-11-22 (iterasi pertama, 0 revisi)
 ### Ditambahkan
 - Jadwal kuliah dengan format waktu seragam (FR-01).
