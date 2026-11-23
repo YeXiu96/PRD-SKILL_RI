@@ -3,7 +3,7 @@ import { ScheduleState, LogEntry, ClassSession, DayOfWeek } from '../types/sched
 import { COURSES, INITIAL_SESSIONS } from '../constants/courses';
 import { detectConflicts, formatSlot, isOverlapping } from '../utils/scheduleLogic';
 import { storageService } from '../services/storage';
-import { supabase, supabaseService } from '../services/supabase';
+import { getSupabase, supabaseService } from '../services/supabase';
 
 const getInitialState = (): ScheduleState => ({
   currentSessions: { ...INITIAL_SESSIONS },
@@ -11,8 +11,9 @@ const getInitialState = (): ScheduleState => ({
 });
 
 export const useSchedule = () => {
+  // Render instan dengan initial state agar tidak ada blank screen
   const [state, setState] = useState<ScheduleState>(getInitialState);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'jadwal' | 'riwayat'>('jadwal');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -36,132 +37,137 @@ export const useSchedule = () => {
     });
   }, []);
 
-  // 1. Pemuatan Awal Data (Sync Supabase & Local Fallback)
+  // 1. Pemuatan Data Latar Belakang (Optimistic: Local Storage & Supabase Sync)
   useEffect(() => {
     let isMounted = true;
-    const safetyTimer = setTimeout(() => {
-      if (isMounted) setIsLoading(false);
-    }, 1200);
 
     (async () => {
       try {
-        // Coba ambil dari Supabase terlebih dahulu
+        // Coba muat dari penyimpanan lokal dulu untuk kecepatan
+        const localSaved = await storageService.loadState();
+        if (isMounted && localSaved) {
+          setState(localSaved);
+        }
+
+        // Kemudian sinkronkan dengan Supabase di background
         const remoteSessions = await supabaseService.fetchSchedule();
         const remoteLogs = await supabaseService.fetchLogs();
 
         if (isMounted && remoteSessions && Object.keys(remoteSessions).length > 0) {
           const remoteState: ScheduleState = {
             currentSessions: remoteSessions,
-            logs: remoteLogs || [],
+            logs: remoteLogs || localSaved?.logs || [],
           };
           setState(remoteState);
           storageService.saveState(remoteState);
-        } else {
-          // Fallback ke penyimpanan lokal jika offline
-          const saved = await storageService.loadState();
-          if (isMounted && saved) {
-            setState(saved);
-          }
         }
       } catch (e) {
-        console.warn('Gagal sinkronisasi awal dengan Supabase:', e);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-          clearTimeout(safetyTimer);
-        }
+        console.warn('Latar belakang sinkronisasi Supabase:', e);
       }
     })();
 
     return () => {
       isMounted = false;
-      clearTimeout(safetyTimer);
     };
   }, []);
 
-  // 2. Langganan Supabase Realtime (WebSocket Live Update tanpa tombol!)
+  // 2. Langganan Supabase Realtime (WebSocket Live Update tanpa reload!)
   useEffect(() => {
-    const channel = supabase
-      .channel('portal-realtime-channel')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'portal_schedule' },
-        (payload) => {
-          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-            const row: any = payload.new;
-            const courseId = Number(row.course_id);
-            const newSession: ClassSession = {
-              classCode: row.class_code,
-              day: row.day as DayOfWeek,
-              startTime: row.start_time,
-              endTime: row.end_time,
-              room: row.room,
-            };
+    const client = getSupabase();
+    if (!client) return;
 
-            const prevSession = stateRef.current.currentSessions[courseId];
-            const isDifferent =
-              !prevSession ||
-              prevSession.day !== newSession.day ||
-              prevSession.startTime !== newSession.startTime ||
-              prevSession.classCode !== newSession.classCode;
+    let channel: any = null;
 
-            if (isDifferent) {
-              const courseName = COURSES[courseId]?.name || `Mata Kuliah #${courseId}`;
-              const changeText = `Jadwal ${courseName} dipindahkan oleh sistem ke ${formatSlot(
-                newSession
-              )}.`;
+    try {
+      channel = client
+        .channel('portal-realtime-channel')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'portal_schedule' },
+          (payload) => {
+            if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+              const row: any = payload.new;
+              if (!row || !row.course_id) return;
 
-              const now = Date.now();
-              const systemLog: LogEntry = {
-                id: `realtime-sys-${now}`,
-                at: now,
-                txt: changeText,
-                isSystem: true,
-                isRead: false,
+              const courseId = Number(row.course_id);
+              const newSession: ClassSession = {
+                classCode: row.class_code,
+                day: row.day as DayOfWeek,
+                startTime: row.start_time,
+                endTime: row.end_time,
+                room: row.room,
               };
 
-              updateAndSave((prev) => ({
-                ...prev,
-                currentSessions: {
-                  ...prev.currentSessions,
-                  [courseId]: newSession,
-                },
-                logs: [...prev.logs, systemLog],
-              }));
+              const prevSession = stateRef.current.currentSessions[courseId];
+              const isDifferent =
+                !prevSession ||
+                prevSession.day !== newSession.day ||
+                prevSession.startTime !== newSession.startTime ||
+                prevSession.classCode !== newSession.classCode;
 
-              showToast(`⚡ Realtime Update: ${changeText}`);
+              if (isDifferent) {
+                const courseName = COURSES[courseId]?.name || `Mata Kuliah #${courseId}`;
+                const changeText = `Jadwal ${courseName} dipindahkan oleh sistem ke ${formatSlot(
+                  newSession
+                )}.`;
+
+                const now = Date.now();
+                const systemLog: LogEntry = {
+                  id: `realtime-sys-${now}`,
+                  at: now,
+                  txt: changeText,
+                  isSystem: true,
+                  isRead: false,
+                };
+
+                updateAndSave((prev) => ({
+                  ...prev,
+                  currentSessions: {
+                    ...prev.currentSessions,
+                    [courseId]: newSession,
+                  },
+                  logs: [...prev.logs, systemLog],
+                }));
+
+                showToast(`⚡ Realtime Update: ${changeText}`);
+              }
             }
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'portal_logs' },
-        (payload) => {
-          const row: any = payload.new;
-          const newLog: LogEntry = {
-            id: row.id,
-            txt: row.txt,
-            isSystem: row.is_system,
-            isScenario: row.is_scenario,
-            isRead: row.is_read,
-            at: Number(row.at),
-          };
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'portal_logs' },
+          (payload) => {
+            const row: any = payload.new;
+            if (!row || !row.id) return;
 
-          // Hindari duplikasi jika log sudah ada
-          updateAndSave((prev) => {
-            if (prev.logs.some((l) => l.id === newLog.id)) return prev;
-            return {
-              ...prev,
-              logs: [...prev.logs, newLog],
+            const newLog: LogEntry = {
+              id: row.id,
+              txt: row.txt,
+              isSystem: row.is_system,
+              isScenario: row.is_scenario,
+              isRead: row.is_read,
+              at: Number(row.at),
             };
-          });
-        }
-      )
-      .subscribe();
+
+            updateAndSave((prev) => {
+              if (prev.logs.some((l) => l.id === newLog.id)) return prev;
+              return {
+                ...prev,
+                logs: [...prev.logs, newLog],
+              };
+            });
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('Realtime channel subscribe error:', err);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel && client) {
+        client.removeChannel(channel);
+      }
     };
   }, [updateAndSave, showToast]);
 

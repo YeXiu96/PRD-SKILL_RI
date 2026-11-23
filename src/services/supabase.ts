@@ -1,22 +1,44 @@
-import { createClient } from '@supabase/supabase-js';
+import 'react-native-url-polyfill/auto';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ClassSession, LogEntry, DayOfWeek } from '../types/schedule';
 
-export const SUPABASE_URL = 'https://ywwbkuositwvtzjmwgwm.supabase.co';
+export const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://ywwbkuositwvtzjmwgwm.supabase.co';
+
 export const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3d2JrdW9zaXR3dnR6am13Z3dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU0NTc4MzcsImV4cCI6MjExMTAzMzgzN30.VqTwI4Ct1KxkvScdghxSqQhcbcjag6fW3JsJaJL4Byw';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
+let client: SupabaseClient | null = null;
+
+export const getSupabase = (): SupabaseClient | null => {
+  if (!client) {
+    try {
+      if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+        client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn('Gagal menginisialisasi klien Supabase:', err);
+    }
+  }
+  return client;
+};
+
+export const supabase = getSupabase();
 
 export const supabaseService = {
   /** Mengambil seluruh jadwal dari tabel portal_schedule */
   async fetchSchedule(): Promise<Record<number, ClassSession> | null> {
     try {
-      const { data, error } = await supabase.from('portal_schedule').select('*');
+      const client = getSupabase();
+      if (!client) return null;
+
+      const { data, error } = await client.from('portal_schedule').select('*');
       if (error || !data || data.length === 0) return null;
 
       const sessions: Record<number, ClassSession> = {};
@@ -31,7 +53,7 @@ export const supabaseService = {
       });
       return sessions;
     } catch (e) {
-      console.warn('Gagal memuat jadwal dari Supabase:', e);
+      console.warn('Supabase offline atau tabel belum dibuat, menggunakan data lokal:', e);
       return null;
     }
   },
@@ -39,7 +61,10 @@ export const supabaseService = {
   /** Mengambil riwayat log dari tabel portal_logs */
   async fetchLogs(): Promise<LogEntry[] | null> {
     try {
-      const { data, error } = await supabase
+      const client = getSupabase();
+      if (!client) return null;
+
+      const { data, error } = await client
         .from('portal_logs')
         .select('*')
         .order('at', { ascending: true });
@@ -55,7 +80,6 @@ export const supabaseService = {
         at: Number(row.at),
       }));
     } catch (e) {
-      console.warn('Gagal memuat log dari Supabase:', e);
       return null;
     }
   },
@@ -63,7 +87,10 @@ export const supabaseService = {
   /** Memperbarui sesi jadwal mata kuliah tertentu */
   async updateSession(courseId: number, session: ClassSession): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const client = getSupabase();
+      if (!client) return false;
+
+      const { error } = await client
         .from('portal_schedule')
         .update({
           class_code: session.classCode,
@@ -77,7 +104,6 @@ export const supabaseService = {
 
       return !error;
     } catch (e) {
-      console.warn('Gagal mengupdate sesi ke Supabase:', e);
       return false;
     }
   },
@@ -85,7 +111,10 @@ export const supabaseService = {
   /** Menambahkan catatan log riwayat baru */
   async addLog(log: LogEntry): Promise<boolean> {
     try {
-      const { error } = await supabase.from('portal_logs').insert({
+      const client = getSupabase();
+      if (!client) return false;
+
+      const { error } = await client.from('portal_logs').insert({
         id: log.id,
         txt: log.txt,
         is_system: log.isSystem ?? false,
@@ -96,7 +125,6 @@ export const supabaseService = {
 
       return !error;
     } catch (e) {
-      console.warn('Gagal menambah log ke Supabase:', e);
       return false;
     }
   },
