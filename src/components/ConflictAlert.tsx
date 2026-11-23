@@ -24,7 +24,7 @@ export const ConflictAlert: React.FC<ConflictAlertProps> = ({
   const conflictCourseNames = conflictCourseIds.map((id) => COURSES[id]?.name).join(', ');
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessibilityRole="alert">
       <Text style={styles.title}>
         ⚠ {hasUnread ? 'Jadwal kuliahmu berubah' : 'Ada jadwal yang bentrok'}
       </Text>
@@ -44,6 +44,7 @@ export const ConflictAlert: React.FC<ConflictAlertProps> = ({
           Bentrok terdeteksi pada: <Text style={styles.bold}>{conflictCourseNames}</Text>. Pilih sesi
           pengganti pada baris bertanda <Text style={styles.dangerText}>BENTROK</Text>. Jika kamu
           pindah lewat portal, presensi dicatat pada sesi yang kamu pilih.
+          <Text style={styles.subtext}> (asumsi, konfirmasi BAA)</Text>
         </Text>
       )}
 
@@ -52,6 +53,8 @@ export const ConflictAlert: React.FC<ConflictAlertProps> = ({
           style={styles.ackButton}
           onPress={onAcknowledge}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Saya sudah membaca pemberitahuan perubahan jadwal"
         >
           <Text style={styles.ackButtonText}>Saya sudah membaca</Text>
         </TouchableOpacity>
@@ -99,18 +102,26 @@ const styles = StyleSheet.create({
     color: THEME.colors.danger,
     fontWeight: '700',
   },
+  subtext: {
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
+    fontStyle: 'italic',
+  },
   ackButton: {
     marginTop: 10,
     alignSelf: 'flex-start',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: THEME.borderRadius.md,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   ackButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: THEME.colors.textPrimary,
   },

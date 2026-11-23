@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { THEME } from '../constants/theme';
 import { Course, ClassSession } from '../types/schedule';
+import { COURSES } from '../constants/courses';
 import { formatSlot, formatTime, isOverlapping } from '../utils/scheduleLogic';
 
 interface ScheduleCardProps {
@@ -9,7 +10,7 @@ interface ScheduleCardProps {
   currentSession: ClassSession;
   conflictingPeers?: Course[];
   allCurrentSessions: Record<number, ClassSession>;
-  onMoveSession: (courseId: number, targetSession: ClassSession) => void;
+  onRequestMove: (course: Course, targetSession: ClassSession) => void;
 }
 
 export const ScheduleCard: React.FC<ScheduleCardProps> = ({
@@ -17,10 +18,9 @@ export const ScheduleCard: React.FC<ScheduleCardProps> = ({
   currentSession,
   conflictingPeers,
   allCurrentSessions,
-  onMoveSession,
+  onRequestMove,
 }) => {
   const isConflict = Boolean(conflictingPeers && conflictingPeers.length > 0);
-  const [isAlternativesExpanded, setIsAlternativesExpanded] = useState<boolean>(true);
 
   // Daftar kelas paralel selain kelas yang saat ini diambil
   const alternativeSessions = course.sessions.filter(
@@ -40,11 +40,11 @@ export const ScheduleCard: React.FC<ScheduleCardProps> = ({
 
         <View style={styles.statusBadgeContainer}>
           {isConflict ? (
-            <View style={styles.badgeDanger}>
+            <View style={styles.badgeDanger} accessibilityLabel={`Bentrok dengan ${conflictingPeers?.map(p => p.name).join(', ')}`}>
               <Text style={styles.badgeDangerText}>⚠ BENTROK</Text>
             </View>
           ) : (
-            <View style={styles.badgeSuccess}>
+            <View style={styles.badgeSuccess} accessibilityLabel="Jadwal aman">
               <Text style={styles.badgeSuccessText}>✓ Aman</Text>
             </View>
           )}
@@ -66,54 +66,53 @@ export const ScheduleCard: React.FC<ScheduleCardProps> = ({
         )}
       </View>
 
-      {/* Bagian Pemilihan Sesi Pengganti Kelas Paralel (FR-04 & FR-05) */}
+      {/* Bagian Pemilihan Sesi Pengganti Kelas Paralel (FR-04 & UXAC-05, UXAC-06) */}
       {isConflict && (
         <View style={styles.alternativesSection}>
-          <TouchableOpacity
-            style={styles.alternativesHeader}
-            onPress={() => setIsAlternativesExpanded(!isAlternativesExpanded)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.alternativesTitle}>
-              🔄 Sesi Pengganti (Dosen: {course.lecturer})
-            </Text>
-            <Text style={styles.expandIcon}>{isAlternativesExpanded ? '▲' : '▼'}</Text>
-          </TouchableOpacity>
+          <Text style={styles.alternativesTitle}>
+            Sesi pengganti (kelas paralel dosen yang sama: {course.lecturer})
+          </Text>
 
-          {isAlternativesExpanded && (
+          {alternativeSessions.length === 0 ? (
+            <Text style={styles.altEmptyText}>
+              Belum ada sesi pengganti yang tersedia. Hubungi Program Studi.
+            </Text>
+          ) : (
             <View style={styles.alternativesList}>
               {alternativeSessions.map((session, idx) => {
-                // Periksa apakah sesi ini menyebabkan bentrok dengan mata kuliah lain
-                const otherCollisions = Object.keys(allCurrentSessions)
+                // Periksa apakah sesi alternatif ini beririsan dengan matkul lain
+                const collisionIds = Object.keys(allCurrentSessions)
                   .map(Number)
                   .filter((otherId) => otherId !== course.id && isOverlapping(session, allCurrentSessions[otherId]));
 
-                const willConflict = otherCollisions.length > 0;
+                const willConflict = collisionIds.length > 0;
+                const collidingCourseNames = collisionIds.map((id) => COURSES[id]?.name).join(', ');
 
                 return (
                   <View key={idx} style={styles.alternativeItem}>
                     <View style={styles.altInfo}>
                       <Text style={styles.altClassTitle}>
-                        Kelas {session.classCode} · {formatSlot(session)}
+                        Kelas {session.classCode} · {formatSlot(session)} · {session.room}
                       </Text>
-                      <Text style={styles.altRoomText}>{session.room}</Text>
                       {willConflict ? (
                         <Text style={styles.altConflictText}>
-                          Bentrok jika dipilih (irisan jam kuliah lain)
+                          ⚠ Bentrok dengan {collidingCourseNames}
                         </Text>
                       ) : (
-                        <Text style={styles.altSafeText}>✓ Bebas bentrok</Text>
+                        <Text style={styles.altSafeText}>✓ Tidak bentrok</Text>
                       )}
                     </View>
 
                     <TouchableOpacity
                       style={[styles.moveButton, willConflict && styles.moveButtonDisabled]}
                       disabled={willConflict}
-                      onPress={() => onMoveSession(course.id, session)}
+                      onPress={() => onRequestMove(course, session)}
                       activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel={willConflict ? `Tidak bisa pindah, bentrok dengan ${collidingCourseNames}` : `Pindah ke kelas ${session.classCode}`}
                     >
-                      <Text style={styles.moveButtonText}>
-                        {willConflict ? 'Tidak Bisa' : 'Pindah Sesi'}
+                      <Text style={[styles.moveButtonText, willConflict && styles.moveButtonTextDisabled]}>
+                        Pindah ke sesi ini
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -144,7 +143,7 @@ const styles = StyleSheet.create({
   },
   cardConflict: {
     borderColor: THEME.colors.danger,
-    backgroundColor: '#FFF8F8',
+    backgroundColor: THEME.colors.dangerLight,
     borderLeftWidth: 5,
     borderLeftColor: THEME.colors.danger,
   },
@@ -219,6 +218,7 @@ const styles = StyleSheet.create({
   conflictWarningText: {
     fontSize: 12,
     color: THEME.colors.danger,
+    fontWeight: '600',
     marginTop: 6,
   },
   bold: {
@@ -228,25 +228,22 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: THEME.colors.dangerLight,
-  },
-  alternativesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
+    borderTopColor: THEME.colors.danger,
+    borderStyle: 'dashed',
   },
   alternativesTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: THEME.colors.textPrimary,
+    marginBottom: 8,
   },
-  expandIcon: {
+  altEmptyText: {
     fontSize: 12,
     color: THEME.colors.textSecondary,
+    fontStyle: 'italic',
+    paddingVertical: 4,
   },
   alternativesList: {
-    marginTop: 6,
     gap: 8,
   },
   alternativeItem: {
@@ -258,24 +255,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: THEME.colors.border,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   altInfo: {
     flex: 1,
-    marginRight: 8,
+    minWidth: 180,
   },
   altClassTitle: {
     fontSize: 13,
     fontWeight: '600',
     color: THEME.colors.textPrimary,
   },
-  altRoomText: {
-    fontSize: 11,
-    color: THEME.colors.textSecondary,
-    marginTop: 1,
-  },
   altConflictText: {
     fontSize: 11,
     color: THEME.colors.danger,
+    fontWeight: '600',
     marginTop: 2,
   },
   altSafeText: {
@@ -286,9 +281,12 @@ const styles = StyleSheet.create({
   },
   moveButton: {
     backgroundColor: THEME.colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: THEME.borderRadius.md,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   moveButtonDisabled: {
     backgroundColor: THEME.colors.border,
@@ -297,5 +295,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  moveButtonTextDisabled: {
+    color: THEME.colors.textSecondary,
   },
 });
